@@ -26,10 +26,14 @@ local MAP_X = Game.mapSizeX
 local MAP_Z = Game.mapSizeZ
 
 local BLOCK_SIZE  = 8
+local SPLAT_BLOCK_SIZE = 4 --arbitrary
 local SQUARE_SIZE = 1024
 
 local SQUARES_X = MAP_X/SQUARE_SIZE
 local SQUARES_Z = MAP_Z/SQUARE_SIZE
+
+local SPLAT_X = MAP_X/SPLAT_BLOCK_SIZE
+local SPLAT_Z = MAP_Z/SPLAT_BLOCK_SIZE
 
 local VEH_NORMAL     = 0.892
 local BOT_NORMAL     = 0.585
@@ -117,8 +121,13 @@ local fsDiffuse = [[
 local updateTiles = {}
 local doUpdateTiles
 
+local initGenesis
+
 local diffuseTexes = {}
 local diffuseFBOs = {}
+
+local splatDistTex
+local splatDistFBO
 
 local diffuseShader
 
@@ -153,6 +162,24 @@ local function Init()
 		end
 	end
 
+	splatDistTex = gl.CreateTexture(SPLAT_X, SPLAT_Z, {
+		format = GL_RGBA,
+		border = false,
+		min_filter = (DO_MIPMAPS and GL.LINEAR_MIPMAP_LINEAR) or GL.LINEAR,
+		mag_filter = GL.LINEAR,
+		wrap_s = GL.CLAMP_TO_EDGE,
+		wrap_t = GL.CLAMP_TO_EDGE,
+	})
+
+	splatDistFBO = gl.CreateFBO({
+		color0 = splatDistTex,
+		drawbuffers = {GL_COLOR_ATTACHMENT0_EXT},
+	})
+
+	Spring.SetMapShadingTexture("$ssmf_splat_distr", splatDistTex)
+
+	initGenesis = true
+
 	diffuseShader = LuaShader({
 			vertex = vsDiffuse,
 			fragment = fsDiffuse,
@@ -181,6 +208,9 @@ local function Clean()
 			gl.DeleteTexture(diffuseTexes[x][z])
 		end
 	end
+
+	gl.DeleteFBO(splatDistFBO)
+	gl.DeleteTexture(splatDistTex)
 
 	diffuseShader:Finalize()
 
@@ -213,6 +243,20 @@ function gadget:Shutdown()
 end
 
 function gadget:DrawGenesis()
+	if initGenesis then
+
+		gl.DepthTest(false)
+		gl.Blending(false)
+		gl.ActiveFBO(splatDistFBO, gl.Clear, GL.COLOR_BUFFER_BIT, 0.0, 0.0, 0.0, 0.0)
+
+		if DO_MIPMAPS then
+			gl.GenerateMipmap(splatDistTex)
+		end
+
+		initGenesis = false
+	end
+
+
 	if doUpdateTiles then
 		diffuseShader:ActivateWith( function()
 
@@ -234,6 +278,7 @@ function gadget:DrawGenesis()
 		end)
 		doUpdateTiles = false
 	end
+
 end
 
 
