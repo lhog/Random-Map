@@ -85,7 +85,7 @@ local vsDiffuse = [[
 
 local fsDiffuse = [[
 	#version 150 compatibility
-	#line 2073
+	#line 2088
 
 	uniform vec2 groundMinMax;
 
@@ -109,7 +109,10 @@ local fsDiffuse = [[
 		vec2 tileUV = gl_FragCoord.xy / viewPortSize;
 		vec2 mapUV = (tileUV + tileParams.xy) / tileParams.zw;
 
-		gl_FragColor = vec4(mapUV, 0.0, 1.0);
+		float slope = GetTerrainSlope(mapUV);
+
+		//gl_FragColor = vec4(mapUV, slope, 1.0);
+		gl_FragColor = vec4(slope, slope, slope, 1.0);
 	}
 ]]
 
@@ -260,6 +263,9 @@ function gadget:DrawGenesis()
 	if doUpdateTiles then
 		diffuseShader:ActivateWith( function()
 
+			glTexture(0, "$heightmap")
+			glTexture(1, "$normals")
+
 			--local minHeight, maxHeight = Spring.GetGameRulesParam("ground_min_override"), Spring.GetGameRulesParam("ground_max_override")
 			local minHeight, maxHeight = Spring.GetGroundExtremes()
 
@@ -274,8 +280,11 @@ function gadget:DrawGenesis()
 				end
 			end
 
+			glTexture(0, false)
+			glTexture(1, false)
 
 		end)
+
 		doUpdateTiles = false
 	end
 
@@ -283,7 +292,7 @@ end
 
 
 function gadget:UnsyncedHeightMapUpdate(x1, z1, x2, z2)
-	local tx1, tz1 = math.floor(x1 * BLOCK_SIZE / SQUARE_SIZE), math.floor(z1 * BLOCK_SIZE / SQUARE_SIZE)
+	local tx1, tz1 = math.floor((x1 * BLOCK_SIZE    ) / SQUARE_SIZE), math.floor((z1 * BLOCK_SIZE    ) / SQUARE_SIZE)
 	local tx2, tz2 = math.floor((x2 * BLOCK_SIZE - 1) / SQUARE_SIZE), math.floor((z2 * BLOCK_SIZE - 1) / SQUARE_SIZE)
 
 	for tx = tx1, tx2 do
